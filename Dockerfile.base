@@ -14,5 +14,5 @@ WORKDIR /tmp/unique_for_apex
 RUN pip uninstall -y apex || :
 RUN git clone https://github.com/NVIDIA/apex.git
 WORKDIR /tmp/unique_for_apex/apex
-RUN pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" .
+RUN /opt/conda/envs/syolo/bin/pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" .
 
