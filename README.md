@@ -76,6 +76,14 @@ python train.py --data data/coco2017.data --epochs 200 --batch-size 20 --name co
 The same process was used to train the five different YOLOv3's for the Ensemble. The commands used for that are inside the `scripts/` folder: `train_ensembles.sh` and `train_ensembles_round2.sh`
 
 
+### Training CCPD from scratch:
+
+```
+docker run -it --ipc host --gpus all --mount type=bind,source="$(pwd)",target=/project syolo-base bash
+cd /project
+python train.py --data data/ccpd.data --epochs 100 --batch-size 20 --name ccpd --weights '' --cfg cfg/yolov3-custom-ccpd.cfg --img-size 416 --single-cls
+```
+
 ### Evaluating previous model
 
 **With confidence threshold of 0.1 and IoU threshold of 0.6 for NMS:**
