@@ -1,0 +1,11 @@
+FROM pytorch/pytorch:1.9.0-cuda11.1-cudnn8-runtime
+
+WORKDIR /project
+
+COPY environment.yml environment.yml
+
+RUN apt-get update
+RUN apt-get install ffmpeg libsm6 libxext6  -y
+RUN conda env create -f environment.yml -n syolo \
+    && conda init bash
+RUN echo "source activate syolo" >> ~/.bashrc
