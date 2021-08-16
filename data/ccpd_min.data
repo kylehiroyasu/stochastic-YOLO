@@ -1,0 +1,5 @@
+classes=1
+train=ccpd/coco_format/train_mini.txt
+valid=ccpd/coco_format/val_mini.txt
+names=data/ccpd.names
+instances_path=coco/annotations/instances_val2017.json

@@ -252,3 +252,5 @@ crashlytics-build.properties
 fabric.properties
 
 ccpd
+!data/ccpd.names
+!data/ccpd*.data
