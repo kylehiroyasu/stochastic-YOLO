@@ -926,8 +926,13 @@ def output_to_target(output, width, height):
     Convert a YOLO model output to target format
     [batch_id, class_id, x, y, w, h, conf]
     """
-    if isinstance(output, torch.Tensor):
-        output = output.cpu().numpy()
+    try:
+        if isinstance(output, torch.Tensor):
+            output = output.cpu().numpy()
+        elif isinstance(output, list):
+            output = [t.cpu().numpy() for t in output]
+    except Exception:
+        print('Tried to move tensor to cpu then numpy and failed and failed')
 
     targets = []
     for i, o in enumerate(output):
