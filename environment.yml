@@ -86,7 +86,6 @@ dependencies:
     - albumentations==1.0.3
     - alembic==1.6.5
     - antlr4-python3-runtime==4.8
-    - apex==0.1
     - async-timeout==3.0.1
     - attrs==21.2.0
     - black==21.6b0
