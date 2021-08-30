@@ -81,7 +81,14 @@ The same process was used to train the five different YOLOv3's for the Ensemble.
 ```
 docker run -it --ipc host --gpus all --mount type=bind,source="$(pwd)",target=/project syolo-base bash
 cd /project
-python train.py --data data/ccpd.data --epochs 100 --batch-size 20 --name ccpd --weights '' --cfg cfg/yolov3-custom-ccpd.cfg --img-size 416 --single-cls
+python train.py --data data/ccpd.data --epochs 25 --batch-size 20 --name ccpd --weights '' --cfg cfg/yolov3-custom-ccpd.cfg --img-size 416 --single-cls
+python train.py --data data/ccpd.data --epochs 25 --batch-size 20 --name ccpd --weights '' --cfg cfg/yolov3-mcdrop25-ccpd.cfg --img-size 416 --single-cls
+```
+
+### Evaluating CCPD:
+
+```
+python test.py --data data/ccpd.data --img-size 416 --weights weights/best.pt --cfg cfg/yolov3-custom-ccpd.cfg --conf-thres=0.1 --iou-thres=0.6 --name ccpd_test_1 --single-cls --save-json
 ```
 
 ### Evaluating previous model
