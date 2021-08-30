@@ -43,7 +43,7 @@ def create_label_txt(file, width, height, folder):
     values = parse_filename(file)
     bbox_points = values['bounding_box'].split('_')
     bbox = [int(coord) for coord in bbox_points[0].split('&') + bbox_points[1].split('&')]
-    converted_bbox = box_convert(tensor(bbox), in_fmt='xyxy', out_fmt='xywh')
+    converted_bbox = box_convert(tensor(bbox), in_fmt='xyxy', out_fmt='cxcywh')
     new_converted_box = converted_bbox.tolist()
     new_converted_box[0] = new_converted_box[0]/width
     new_converted_box[1] = new_converted_box[1]/height

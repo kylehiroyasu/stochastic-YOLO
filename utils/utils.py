@@ -926,14 +926,30 @@ def output_to_target(output, width, height):
     Convert a YOLO model output to target format
     [batch_id, class_id, x, y, w, h, conf]
     """
-    try:
-        if isinstance(output, torch.Tensor):
-            output = output.cpu().numpy()
-        elif isinstance(output, list):
-            output = [t.cpu().numpy() for t in output]
-    except Exception:
-        print('Tried to move tensor to cpu then numpy and failed and failed')
+    #try:
+    #    if isinstance(output, torch.Tensor):
+    #        output = output.cpu().numpy()
+    #    elif isinstance(output, list):
+    #        output = [t.cpu().numpy() for t in output]
+    #except Exception:
+    #    print('Tried to move tensor to cpu then numpy and failed and failed')
 
+    if isinstance(output, torch.Tensor):
+        try:
+            output = output.cpu().numpy()
+        except Exception as e:
+            print('Tried to cast Tensor to numpy array')
+    elif isinstance(output, list):
+        try:
+            new_output = []
+            for el in output:
+                if el is not None:
+                    new_output.append(el.cpu().numpy())
+                else:
+                    new_output.append(None)
+            output = new_output
+        except Exception as e:
+            print('Tried to cast list of tensors to numpy array')
     targets = []
     for i, o in enumerate(output):
         if o is not None:
@@ -1037,8 +1053,10 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
             image_targets = targets[targets[:, 0] == i]
             boxes = xywh2xyxy(image_targets[:, 2:6]).T
             classes = image_targets[:, 1].astype('int')
-            gt = image_targets.shape[1] == 6  # ground truth if no conf column
-            conf = None if gt else image_targets[:, 6]  # check for confidence presence (gt vs pred)
+            #gt = image_targets.shape[1] == 6  # ground truth if no conf column
+            #conf = None if gt else image_targets[:, 6]  # check for confidence presence (gt vs pred)
+            gt = image_targets.shape[1] < 6  # ground truth if no conf column
+            conf = None if gt else image_targets[:, 5]  # check for confidence presence (gt vs pred)
 
             boxes[[0, 2]] *= w
             boxes[[0, 2]] += block_x

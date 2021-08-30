@@ -1,15 +1,16 @@
 import argparse
+import itertools
 import json
+import sys
 
+import numpy as np
+import pandas as pd
 from torch.utils.data import DataLoader
 
 from models import *
 from utils.datasets import *
 from utils.utils import *
 
-import numpy as np
-
-import sys
 sys.path.append('./cocoapi/PythonAPI/')
 
 sys.path.append('./pdq_evaluation')
@@ -380,7 +381,7 @@ def test(cfg,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
-    parser.add_argument('--cfg', type=str, default='cfg/yolov3-spp.cfg', help='*.cfg path')
+    parser.add_argument('--cfg', type=str, default='cfg/yolov3-custom-ccpd.cfg', help='*.cfg path')
     parser.add_argument('--data', type=str, default='data/coco2014.data', help='*.data path')
     parser.add_argument('--weights', type=str, default='weights/yolov3-spp-ultralytics.pt', help='weights path')
     parser.add_argument('--batch-size', type=int, default=16, help='size of each image batch')
@@ -394,56 +395,72 @@ if __name__ == '__main__':
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--dropout_ids', nargs='*', type=int, help='when weights file is from a non-dropout model, and cfg is a dropout model, this indicates what are the dropout layers IDs starting from 0')
     parser.add_argument('--name', default='', help='renames resulting files in this script using this name')
-    parser.add_argument('--dropout_at_inference', action='store_true', help='Activate dropout at inference time')
     parser.add_argument('--num_samples', type=int, default=1, help='How many times to sample if doing MC-Dropout')
     parser.add_argument('--corruption_num', type=int, help='which corruption number to use from imagecorruptions')
     parser.add_argument('--severity', type=int, help='which severity to use for the corruption in --corruption_num')
     parser.add_argument('--get_unknowns', action='store_true', help='get bboxes of unknowns conf_labels < 0.5 and threshold > 0.1')
     parser.add_argument('--only_inference', action='store_true', help='to indicate that the info in --data does not have valid ground truths or to not calculate some evaluations')
     parser.add_argument('--new_drop_rate', type=float, help='change the dropout rate of Dropout layers to this, regardless of the values in .cfg file')
-    parser.add_argument('--with_cached_mcdrop', action='store_true', help='Use the cached version of MCDropout sampling. Note this will not use DataParallel for GPU type')
     parser.add_argument('--ensemble_main_name', type=str, help='the main name of the ensemble model in which --num_samples will be sampled from. This takes precendence on other options. This considers pretrained models will be in weights/ folder.')
     opt = parser.parse_args()
-    opt.save_json = opt.save_json or any([x in opt.data for x in ['coco.data', 'coco2014.data', 'coco2017.data', 'coco2017_sampled.data']])
-    opt.cfg = check_file(opt.cfg)  # check file
-    opt.data = check_file(opt.data)  # check file
+    #opt.save_json = opt.save_json or any([x in opt.data for x in ['coco.data', 'coco2014.data', 'coco2017.data', 'coco2017_sampled.data']])
+    #opt.cfg = check_file(opt.cfg)  # check file
+    #opt.data = check_file(opt.data)  # check file
     print(opt)
 
     if opt.new_drop_rate is not None and (opt.new_drop_rate < 0 or opt.new_drop_rate > 1):
         sys.exit('Wrong format for --new_drop_rate. It needs to be between [0, 1]')
-    if opt.with_cached_mcdrop and (opt.ensemble_main_name is not None):
-         sys.exit('--with_cached_mcdrop cannot be used together with --ensemble_main_name')
-    
-    # task = 'test', 'study', 'benchmark'
-    if opt.task == 'test':  # (default) test normally
-        test(cfg=opt.cfg,
-             data=opt.data,
-             weights=opt.weights,
-             batch_size=opt.batch_size,
-             imgsz=opt.img_size,
-             conf_thres=opt.conf_thres,
-             iou_thres=opt.iou_thres,
-             save_json=opt.save_json,
-             single_cls=opt.single_cls,
-             augment=opt.augment,
-             dropout_ids=opt.dropout_ids,
-             name=opt.name,
-             dropout_at_inference=opt.dropout_at_inference,
-             num_samples=opt.num_samples,
-             corruption_num=opt.corruption_num,
-             severity=opt.severity,
-             get_unknowns=opt.get_unknowns,
-             only_inference=opt.only_inference,
-             new_drop_rate=opt.new_drop_rate,
-             with_cached_mcdrop=opt.with_cached_mcdrop,
-             ensemble_main_name=opt.ensemble_main_name)
+    #if opt.with_cached_mcdrop and (opt.ensemble_main_name is not None):
+    #     sys.exit('--with_cached_mcdrop cannot be used together with --ensemble_main_name')
 
-    elif opt.task == 'benchmark':  # mAPs at 256-640 at conf 0.5 and 0.7
-        y = []
-        for i in [128, 416, 640]:  # img-size
-            for j in [0.6, 0.7, 0.9]:  # iou-thres
-                for z in [0.001, 0.1]:
-                    t = time.time()
-                    r = test(opt.cfg, opt.data, opt.weights, opt.batch_size, i, z, j, opt.save_json)[0]
-                    y.append(r + (time.time() - t,))
-        np.savetxt('benchmark.txt', y, fmt='%10.4g')  # y = np.loadtxt('study.txt')
+    datasets = [
+        #'ccpd.data',
+        'ccpd_blur.data',
+        'ccpd_challenge.data',
+        'ccpd_db.data',
+        'ccpd_fn.data',
+        'ccpd_rotate.data',
+        'ccpd_tilt.data',
+    ]
+
+    dropout_at_inference = [True, False]
+    all_results = []
+    for data, dropout in itertools.product(datasets, dropout_at_inference):
+        if dropout:
+            cfg = 'cfg/yolov3-mcdrop25-ccpd.cfg'
+            weights = 'weights/best_ccpd_drop25.pt'
+        else:
+            cfg = 'cfg/yolov3-custom-ccpd.cfg'
+            weights = 'weights/best.pt'
+        result = test(cfg=cfg,
+                        data=data,
+                        weights=weights,
+                        batch_size=opt.batch_size,
+                        imgsz=opt.img_size,
+                        conf_thres=opt.conf_thres,
+                        iou_thres=opt.iou_thres,
+                        save_json=opt.save_json,
+                        single_cls=opt.single_cls,
+                        augment=opt.augment,
+                        dropout_ids=opt.dropout_ids,
+                        name=opt.name,
+                        dropout_at_inference=dropout,
+                        num_samples=opt.num_samples,
+                        corruption_num=opt.corruption_num,
+                        severity=opt.severity,
+                        get_unknowns=opt.get_unknowns,
+                        only_inference=opt.only_inference,
+                        new_drop_rate=opt.new_drop_rate,
+                        with_cached_mcdrop=dropout,
+                        ensemble_main_name=opt.ensemble_main_name)
+        # (mp, mr, map, mf1, *(loss.cpu() / len(dataloader)).tolist()), maps
+        all_results.append({
+            'data': data,
+            'dropout': dropout,
+            'mp': result[0][0],
+            'mr': result[0][1],
+            'map': result[0][2],
+            'mf1': result[0][3],
+        })
+        df = pd.DataFrame(all_results)
+        df.to_csv('all_test_results.csv')
