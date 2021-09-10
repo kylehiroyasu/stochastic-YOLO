@@ -1,6 +1,7 @@
 name: stochastic_yolo
 channels:
   - pytorch
+  - nvidia
   - conda-forge
   - defaults
 dependencies:
