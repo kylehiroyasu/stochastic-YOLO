@@ -70,19 +70,19 @@ if __name__ == '__main__':
     train_files = load_file(splits/'train.txt')
     val_files = load_file(splits/'val.txt')
 
-    for f in train_files[0:20]:
-        copy_image(f, 'train_mini')
+    for f in train_files:
+        copy_image(f, 'train')
         image = cv2.imread(f'../{f}')
         width = image.shape[1]
         height = image.shape[0]
-        create_label_txt(f,width, height , 'train_mini')
+        create_label_txt(f,width, height , 'train')
 
-    for f in val_files[0:20]:
-        copy_image(f, 'val_mini')
+    for f in val_files:
+        copy_image(f, 'val')
         image = cv2.imread(f'../{f}')
         width = image.shape[1]
         height = image.shape[0]
-        create_label_txt(f,width, height , 'val_mini')
+        create_label_txt(f,width, height , 'val')
 
-    create_file_txt(train_files[0:20], 'train_mini')
-    create_file_txt(val_files[0:20], 'val_mini')
+    create_file_txt(train_files, 'train')
+    create_file_txt(val_files, 'val')
