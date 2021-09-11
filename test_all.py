@@ -433,7 +433,7 @@ if __name__ == '__main__':
     all_results = []
     for data, inf_type in itertools.product(datasets, inference_type):
         if inf_type == 'ensemble':
-            name=None
+            name = f'{data.split(".")[0]}_ensemble'
             cfg = 'cfg/yolov3-custom-ccpd.cfg'
             weights = None
             dropout = False
