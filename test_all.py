@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+from torch.nn.functional import dropout
 from torch.utils.data import DataLoader
 
 from models import *
@@ -152,6 +153,7 @@ def test(cfg,
     p, r, f1, mp, mr, map, mf1, t0, t1 = 0., 0., 0., 0., 0., 0., 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class = [], [], [], []
+    predictions = []
     for batch_i, (imgs, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         imgs = imgs.to(device).float() / 255.0  # uint8 to float32, 0 - 255 to 0.0 - 1.0
         targets = targets.to(device)
@@ -302,6 +304,14 @@ def test(cfg,
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
+            cpu_pred = pred.cpu()
+            predictions.append({
+                'correct': correct.cpu().tolist(),
+                'bounding_boxes': cpu_pred[:,:4].tolist(),
+                'confidence': cpu_pred[:, 4].tolist(),
+                'predicted_class': cpu_pred[:, 5].tolist(),
+                'image_name': Path(paths[si]).stem
+            })
 
         # Plot images for batch
         if batch_i < 1:
@@ -310,7 +320,6 @@ def test(cfg,
                 plot_images(imgs, targets, paths=paths, names=names, fname=f, max_subplots=batch_size)  # ground truth
             f = f'output/batch_figures/test_batch_{name}_{conf_thres}_{iou_thres}_%g_pred.jpg' % batch_i
             plot_images(imgs, output_to_target(output, width, height), paths=paths, names=names, fname=f, max_subplots=batch_size)  # predictions
-
     if not only_inference:
         # Compute statistics
         stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
@@ -376,14 +385,11 @@ def test(cfg,
     maps = np.zeros(nc) + map
     for i, c in enumerate(ap_class):
         maps[c] = ap[i]
-    return (mp, mr, map, mf1, *(loss.cpu() / len(dataloader)).tolist()), maps
+    return (mp, mr, map, mf1, *(loss.cpu() / len(dataloader)).tolist()), maps, predictions
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
-    parser.add_argument('--cfg', type=str, default='cfg/yolov3-custom-ccpd.cfg', help='*.cfg path')
-    parser.add_argument('--data', type=str, default='data/coco2014.data', help='*.data path')
-    parser.add_argument('--weights', type=str, default='weights/yolov3-spp-ultralytics.pt', help='weights path')
     parser.add_argument('--batch-size', type=int, default=16, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=512, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
@@ -395,7 +401,7 @@ if __name__ == '__main__':
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--dropout_ids', nargs='*', type=int, help='when weights file is from a non-dropout model, and cfg is a dropout model, this indicates what are the dropout layers IDs starting from 0')
     parser.add_argument('--name', default='', help='renames resulting files in this script using this name')
-    parser.add_argument('--num_samples', type=int, default=1, help='How many times to sample if doing MC-Dropout')
+    parser.add_argument('--num_samples', type=int, default=10, help='How many times to sample if doing MC-Dropout')
     parser.add_argument('--corruption_num', type=int, help='which corruption number to use from imagecorruptions')
     parser.add_argument('--severity', type=int, help='which severity to use for the corruption in --corruption_num')
     parser.add_argument('--get_unknowns', action='store_true', help='get bboxes of unknowns conf_labels < 0.5 and threshold > 0.1')
@@ -415,23 +421,35 @@ if __name__ == '__main__':
 
     datasets = [
         #'ccpd.data',
-        'ccpd_blur.data',
-        'ccpd_challenge.data',
+        #'ccpd_blur.data',
+        #'ccpd_challenge.data',
         'ccpd_db.data',
         'ccpd_fn.data',
         'ccpd_rotate.data',
         'ccpd_tilt.data',
     ]
 
-    dropout_at_inference = [True, False]
+    inference_type = ['normal','dropout', 'ensemble']
     all_results = []
-    for data, dropout in itertools.product(datasets, dropout_at_inference):
-        if dropout:
+    for data, inf_type in itertools.product(datasets, inference_type):
+        if inf_type == 'ensemble':
+            name=None
+            cfg = 'cfg/yolov3-custom-ccpd.cfg'
+            weights = None
+            dropout = False
+            num_samples = 2
+        elif inf_type == 'dropout':
+            name = f'{data.split(".")[0]}_dropout'
             cfg = 'cfg/yolov3-mcdrop25-ccpd.cfg'
             weights = 'weights/best_ccpd_drop25.pt'
+            dropout = True
+            num_samples = 10
         else:
+            name = data.split('.')[0]
             cfg = 'cfg/yolov3-custom-ccpd.cfg'
             weights = 'weights/best.pt'
+            dropout = False
+            num_samples = 1
         result = test(cfg=cfg,
                         data=data,
                         weights=weights,
@@ -443,9 +461,9 @@ if __name__ == '__main__':
                         single_cls=opt.single_cls,
                         augment=opt.augment,
                         dropout_ids=opt.dropout_ids,
-                        name=opt.name,
+                        name=name,
                         dropout_at_inference=dropout,
-                        num_samples=opt.num_samples,
+                        num_samples=num_samples,
                         corruption_num=opt.corruption_num,
                         severity=opt.severity,
                         get_unknowns=opt.get_unknowns,
@@ -462,5 +480,9 @@ if __name__ == '__main__':
             'map': result[0][2],
             'mf1': result[0][3],
         })
+        predictions = result[2]
+        with open(f'{name}.csv', mode='w') as f:
+            for p in predictions:
+                f.write(f'{json.dumps(p)}\n')
         df = pd.DataFrame(all_results)
         df.to_csv('all_test_results.csv')
