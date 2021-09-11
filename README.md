@@ -235,3 +235,8 @@ python test.py --data data/taco_batch13.data --img-size 416 --weights weights/be
 ```
 
 Notice that we provide some files inside `data/` for a reduced amount of images from TACO's repository in a format needed by this repository.
+
+
+# Running all tests on CCPD
+
+python test_all.py --save-json --single-cls --num_samples 10
