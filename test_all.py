@@ -438,18 +438,21 @@ if __name__ == '__main__':
             weights = None
             dropout = False
             num_samples = 2
+            new_drop_rate = 0.0
         elif inf_type == 'dropout':
             name = f'{data.split(".")[0]}_dropout'
             cfg = 'cfg/yolov3-mcdrop25-ccpd.cfg'
             weights = 'weights/best_ccpd_drop25.pt'
             dropout = True
             num_samples = 10
+            new_drop_rate = 0.25
         else:
             name = data.split('.')[0]
             cfg = 'cfg/yolov3-custom-ccpd.cfg'
             weights = 'weights/best.pt'
             dropout = False
             num_samples = 1
+            new_drop_rate = 0.0
         result = test(cfg=cfg,
                         data=data,
                         weights=weights,
@@ -468,7 +471,7 @@ if __name__ == '__main__':
                         severity=opt.severity,
                         get_unknowns=opt.get_unknowns,
                         only_inference=opt.only_inference,
-                        new_drop_rate=opt.new_drop_rate,
+                        new_drop_rate=new_drop_rate,
                         with_cached_mcdrop=dropout,
                         ensemble_main_name=opt.ensemble_main_name)
         # (mp, mr, map, mf1, *(loss.cpu() / len(dataloader)).tolist()), maps
