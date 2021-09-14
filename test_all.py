@@ -51,6 +51,21 @@ def get_single_darknet_model(cfg, imgsz, weights, device, dropout_ids, new_drop_
 
     return model
 
+def bounding_box_variance(samples):
+    # Take mean of predictions for single image
+    variance = []
+    for i, m in enumerate(samples.mean(dim=1)):
+        expectation = m.dot(m)
+        sum = 0
+        # loop over defined samples of a given prediction
+        for sample in samples[i]:
+            square_predictions = sample.dot(sample)
+            sum += square_predictions - expectation
+        average = sum / samples[i].shape[0]
+        variance.append(average)
+    variance = torch.stack(variance).tolist()
+    return variance
+
 def test(cfg,
          data,
          weights=None,
@@ -198,7 +213,7 @@ def test(cfg,
             # Run NMS
             t = torch_utils.time_synchronized()
 
-            output, all_scores, sampled_coords = non_max_suppression(inf_out, conf_thres=conf_thres, iou_thres=iou_thres, multi_label=multi_label,
+            output, all_scores, sampled_coords, sampled_probs = non_max_suppression(inf_out, conf_thres=conf_thres, iou_thres=iou_thres, multi_label=multi_label,
                                                                      max_width=width, max_height=height, get_unknowns=get_unknowns)
             
             t1 += torch_utils.time_synchronized() - t
@@ -305,10 +320,20 @@ def test(cfg,
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
             cpu_pred = pred.cpu()
+            # Loop over batch of images
+            if sampled_coords is not None:
+                variance = bounding_box_variance(sampled_coords[si])
+            else:
+                variance = [0] * correct.shape[0]
+
+            #TODO: Figure out if this is xyxy or cxcywh
+            # TODO: find better way to calulate this
             predictions.append({
                 'correct': correct.cpu().tolist(),
                 'bounding_boxes': cpu_pred[:,:4].tolist(),
+                'bounding_box_variance': variance,
                 'confidence': cpu_pred[:, 4].tolist(),
+                'entropy': (-cpu_pred[:, 4] * cpu_pred[:, 4].log() - (1-cpu_pred[:, 4]) * (1-cpu_pred[:, 4]).log()).tolist(),
                 'predicted_class': cpu_pred[:, 5].tolist(),
                 'image_name': Path(paths[si]).stem
             })
@@ -420,22 +445,24 @@ if __name__ == '__main__':
     #     sys.exit('--with_cached_mcdrop cannot be used together with --ensemble_main_name')
 
     datasets = [
-        #'ccpd.data',
-        #'ccpd_blur.data',
-        #'ccpd_challenge.data',
+        'ccpd_blur.data',
+        'ccpd_challenge.data',
         'ccpd_db.data',
         'ccpd_fn.data',
         'ccpd_rotate.data',
         'ccpd_tilt.data',
+        'ccpd.data',
     ]
 
-    inference_type = ['normal','dropout', 'ensemble']
+    inference_type = ['ensemble', 'normal','dropout', ]
+    #inference_type = ['ensemble']
     all_results = []
     for data, inf_type in itertools.product(datasets, inference_type):
         if inf_type == 'ensemble':
             name = f'{data.split(".")[0]}_ensemble'
             cfg = 'cfg/yolov3-custom-ccpd.cfg'
             weights = None
+            ensemble_main_name = 'best_copy'
             dropout = False
             num_samples = 2
             new_drop_rate = 0.0
@@ -443,6 +470,7 @@ if __name__ == '__main__':
             name = f'{data.split(".")[0]}_dropout'
             cfg = 'cfg/yolov3-mcdrop25-ccpd.cfg'
             weights = 'weights/best_ccpd_drop25.pt'
+            ensemble_main_name = None
             dropout = True
             num_samples = 10
             new_drop_rate = 0.25
@@ -450,6 +478,7 @@ if __name__ == '__main__':
             name = data.split('.')[0]
             cfg = 'cfg/yolov3-custom-ccpd.cfg'
             weights = 'weights/best.pt'
+            ensemble_main_name = None
             dropout = False
             num_samples = 1
             new_drop_rate = 0.0
@@ -473,7 +502,7 @@ if __name__ == '__main__':
                         only_inference=opt.only_inference,
                         new_drop_rate=new_drop_rate,
                         with_cached_mcdrop=dropout,
-                        ensemble_main_name=opt.ensemble_main_name)
+                        ensemble_main_name=ensemble_main_name)
         # (mp, mr, map, mf1, *(loss.cpu() / len(dataloader)).tolist()), maps
         all_results.append({
             'data': data,
