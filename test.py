@@ -195,7 +195,7 @@ def test(cfg,
             # Run NMS
             t = torch_utils.time_synchronized()
 
-            output, all_scores, sampled_coords = non_max_suppression(inf_out, conf_thres=conf_thres, iou_thres=iou_thres, multi_label=multi_label,
+            output, all_scores, sampled_coords, sampled_probs = non_max_suppression(inf_out, conf_thres=conf_thres, iou_thres=iou_thres, multi_label=multi_label,
                                                                      max_width=width, max_height=height, get_unknowns=get_unknowns)
             
             t1 += torch_utils.time_synchronized() - t

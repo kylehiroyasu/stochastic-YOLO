@@ -559,8 +559,10 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6, multi_label=F
     all_scores = [None] * prediction.shape[0]
     if prediction.shape[2] > 1:
         sampled_coords = [None] * prediction.shape[0]
+        sampled_probs = [None] * prediction.shape[0]
     else:
         sampled_coords = None
+        sampled_probs = None
     for xi, x_all in enumerate(prediction):  # image index, image inference
         
         # Apply constraints
@@ -669,12 +671,13 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6, multi_label=F
 
         if prediction.shape[2] > 1:
             sampled_coords[xi] = x_all[:, 1:, :4]
+            sampled_probs[xi] = x_all[:, 1:, 4:]
         
         # I've removed time_limit to guarantee that everything is processed
         #if (time.time() - t) > time_limit:
         #    break  # time limit exceeded
 
-    return output, all_scores, sampled_coords
+    return output, all_scores, sampled_coords, sampled_probs
 
 
 def get_yolo_layers(model):
