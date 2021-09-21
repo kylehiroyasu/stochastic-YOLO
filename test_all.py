@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from torch.nn.functional import dropout
 from torch.utils.data import DataLoader
+from torchvision.ops import box_convert
 
 from models import *
 from utils.datasets import *
@@ -174,6 +175,9 @@ def test(cfg,
         targets = targets.to(device)
         nb, _, height, width = imgs.shape  # batch size, channels, height, width
         whwh = torch.Tensor([width, height, width, height]).to(device)
+
+        #targets[:,2] += targets[:,4]/2
+        #targets[:,3] += targets[:,5]/2
 
         # Disable gradients
         with torch.no_grad():
@@ -345,6 +349,7 @@ def test(cfg,
                 plot_images(imgs, targets, paths=paths, names=names, fname=f, max_subplots=batch_size)  # ground truth
             f = f'output/batch_figures/test_batch_{name}_{conf_thres}_{iou_thres}_%g_pred.jpg' % batch_i
             plot_images(imgs, output_to_target(output, width, height), paths=paths, names=names, fname=f, max_subplots=batch_size)  # predictions
+        
     if not only_inference:
         # Compute statistics
         stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
@@ -416,7 +421,7 @@ def test(cfg,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
     parser.add_argument('--batch-size', type=int, default=16, help='size of each image batch')
-    parser.add_argument('--img-size', type=int, default=512, help='inference size (pixels)')
+    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     parser.add_argument('--save-json', action='store_true', default=False, help='save a cocoapi-compatible JSON results file')
@@ -445,39 +450,39 @@ if __name__ == '__main__':
     #     sys.exit('--with_cached_mcdrop cannot be used together with --ensemble_main_name')
 
     datasets = [
-        'ccpd_blur.data',
-        'ccpd_challenge.data',
-        'ccpd_db.data',
-        'ccpd_fn.data',
-        'ccpd_rotate.data',
-        'ccpd_tilt.data',
+        #'ccpd_blur.data',
+        #'ccpd_challenge.data',
+        #'ccpd_db.data',
+        #'ccpd_fn.data',
+        #'ccpd_rotate.data',
+        #'ccpd_tilt.data',
         'ccpd.data',
     ]
 
     inference_type = ['ensemble', 'normal','dropout', ]
-    #inference_type = ['ensemble']
+    #inference_type = ['normal']
     all_results = []
     for data, inf_type in itertools.product(datasets, inference_type):
         if inf_type == 'ensemble':
             name = f'{data.split(".")[0]}_ensemble'
             cfg = 'cfg/yolov3-custom-ccpd.cfg'
             weights = None
-            ensemble_main_name = 'best_copy'
+            ensemble_main_name = 'best_ccpd_ensemble'
             dropout = False
-            num_samples = 2
+            num_samples = 3
             new_drop_rate = 0.0
         elif inf_type == 'dropout':
             name = f'{data.split(".")[0]}_dropout'
             cfg = 'cfg/yolov3-mcdrop25-ccpd.cfg'
-            weights = 'weights/best_ccpd_drop25.pt'
+            weights = 'weights/best_ccpd_mcdrop0.pt'
             ensemble_main_name = None
             dropout = True
             num_samples = 10
             new_drop_rate = 0.25
         else:
             name = data.split('.')[0]
-            cfg = 'cfg/yolov3-custom-ccpd.cfg'
-            weights = 'weights/best.pt'
+            cfg = 'cfg/yolov3-mcdrop25-ccpd.cfg'
+            weights = 'weights/best_ccpd_mcdrop0.pt'
             ensemble_main_name = None
             dropout = False
             num_samples = 1
@@ -507,6 +512,7 @@ if __name__ == '__main__':
         all_results.append({
             'data': data,
             'dropout': dropout,
+            'mode': inf_type,
             'mp': result[0][0],
             'mr': result[0][1],
             'map': result[0][2],

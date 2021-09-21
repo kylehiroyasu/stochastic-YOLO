@@ -44,7 +44,6 @@ def create_label_txt(file, width, height, folder):
     bbox_points = values['bounding_box'].split('_')
     bbox = [int(coord) for coord in bbox_points[0].split('&') + bbox_points[1].split('&')]
     converted_bbox = box_convert(tensor(bbox), in_fmt='xyxy', out_fmt='cxcywh')
-    #converted_bbox = box_convert(tensor(bbox), in_fmt='xyxy', out_fmt='xywh') # TODO: I fucked this up it should be xywh not cxcywh
     new_converted_box = converted_bbox.tolist()
     new_converted_box[0] = new_converted_box[0]/width
     new_converted_box[1] = new_converted_box[1]/height
@@ -67,23 +66,45 @@ def create_file_txt(files, file_type):
 
 
 if __name__ == '__main__':
-        
-    train_files = load_file(splits/'train.txt')
-    val_files = load_file(splits/'val.txt')
+    txt_files = [
+        'ccpd_blur.txt',
+        'ccpd_challenge.txt',
+        'ccpd_db.txt',
+        'ccpd_fn.txt',
+        'ccpd_rotate.txt',
+        'ccpd_tilt.txt',
+        'test.txt',
+        'train.txt',
+        'val.txt',
+    ]
 
-    for f in train_files:
-        copy_image(f, 'train')
-        image = cv2.imread(f'../{f}')
-        width = image.shape[1]
-        height = image.shape[0]
-        create_label_txt(f,width, height , 'train')
+    for txt in txt_files:
+        folder = txt.split('.')[0]
+        files = load_file(splits/txt)
+        for f in files:
+            copy_image(f, folder)
+            image = cv2.imread(f'../{f}')
+            width = image.shape[1]
+            height = image.shape[0]
+            create_label_txt(f,width, height , folder)
+        create_file_txt(files, folder)
 
-    for f in val_files:
-        copy_image(f, 'val')
-        image = cv2.imread(f'../{f}')
-        width = image.shape[1]
-        height = image.shape[0]
-        create_label_txt(f,width, height , 'val')
+    # train_files = load_file(splits/'train.txt')
+    # val_files = load_file(splits/'val.txt')
 
-    create_file_txt(train_files, 'train')
-    create_file_txt(val_files, 'val')
+    # for f in train_files:
+    #     copy_image(f, 'train')
+    #     image = cv2.imread(f'../{f}')
+    #     width = image.shape[1]
+    #     height = image.shape[0]
+    #     create_label_txt(f,width, height , 'train')
+
+    # for f in val_files:
+    #     copy_image(f, 'val')
+    #     image = cv2.imread(f'../{f}')
+    #     width = image.shape[1]
+    #     height = image.shape[0]
+    #     create_label_txt(f,width, height , 'val')
+
+    # create_file_txt(train_files, 'train')
+    # create_file_txt(val_files, 'val')
