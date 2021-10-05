@@ -119,7 +119,8 @@ def create_modules(module_defs, img_size, cfg):
 
         elif mdef['type'] == 'dropout':
             perc = float(mdef['probability'])
-            modules = nn.Dropout(p=perc)
+            #modules = nn.Dropout(p=perc)
+            modules = nn.Dropout2d(p=perc)
         else:
             print('Warning: Unrecognized Layer Type: ' + mdef['type'])
 
@@ -365,7 +366,8 @@ class DecoratorDarknetMCDrop(nn.Module):
             name = module.__class__.__name__
             if name in ['WeightedFeatureFusion', 'FeatureConcat']:  # sum, concat
                 x = module(x, out)  # WeightedFeatureFusion(), FeatureConcat()
-            elif name == 'Dropout':
+            #elif name == 'Dropout':
+            elif name in ['Dropout', 'Dropout2d']:
                 # Break calculation, and start sampling from here
                 break
             elif name == 'YOLOLayer':
