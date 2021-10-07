@@ -77,6 +77,7 @@ if __name__ == '__main__':
         'train.txt',
         'val.txt',
     ]
+    txt_files = ['ccpd_weather.txt']
 
     for txt in txt_files:
         folder = txt.split('.')[0]

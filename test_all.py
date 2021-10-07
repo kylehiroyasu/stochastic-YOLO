@@ -450,7 +450,7 @@ if __name__ == '__main__':
     #     sys.exit('--with_cached_mcdrop cannot be used together with --ensemble_main_name')
 
     datasets = [
-        'ccpd.data',
+        #'ccpd.data',
         'ccpd_blur.data',
         'ccpd_challenge.data',
         'ccpd_db.data',
@@ -458,9 +458,9 @@ if __name__ == '__main__':
         'ccpd_rotate.data',
         'ccpd_tilt.data',
     ]
-
-    #inference_type = ['ensemble', 'normal','dropout', ]
-    inference_type = ['dropout']
+    datasets = ['ccpd_weather.data']
+    inference_type = ['ensemble', 'normal','dropout', ]
+    #inference_type = ['dropout']
     all_results = []
     for data, inf_type in itertools.product(datasets, inference_type):
         if inf_type == 'ensemble':
